@@ -1,0 +1,38 @@
+def prop = [:]
+def oGroovy
+
+pipeline {
+    agent any
+    tools {
+        nodejs 'node20'
+    }
+
+    environment{
+        // ======JOB_BASE_NAME 분리======
+        JOB_BASE_NAME_ARR = "${JOB_BASE_NAME}".split("_")
+        JOB_PROJECT_NAME = "${JOB_BASE_NAME_ARR[0]}"
+        JOB_TARGET_ENV = "${JOB_BASE_NAME_ARR[1]}"
+    }
+
+    stages {
+        stage('INIT'){
+            steps {
+                script {
+                    echo "====== ENV 등록 ======"
+                    oGroovy = load 'pipeline.groovy'
+                    prop = oGroovy.readProFileList(env.JOB_PROJECT_NAME, env.JOB_TARGET_ENV)
+                    for(entry in prop){
+                        env[entry.key] = entry.value
+                    }
+
+                    echo "====== JOB 확인 ======"
+                    echo "JOB_PROJECT_NAME :: ${JOB_PROJECT_NAME}"
+                    echo "JOB_TARGET_ENV :: ${JOB_TARGET_ENV}"
+
+                    oGroovy.build()
+                } 
+            }
+        } //init stage
+
+    } //stages
+} //pipeline
