@@ -102,6 +102,46 @@ def _uploadS3Bucket (bucketName) {
         """
 } //_uploadS3Bucket
 
+def sonarQubeCheck(){
+    if(env.SONAR_ENABLE_YN == 'Y'){
+        stage('SonarQube'){
+            dir("project"){
+                def sonar_project_key = "${env.JOB_TARGET_ENV.toUpperCase()}:${env.JOB_PROJECT_NAME}"
+                this._sonarQubeCheck(sonar_project_key)
+                this.qualityGateCheck()
+            }
+        }
+    }
+} //sonarQubeCheck
+
+def _sonarQubeCheck(sonar_project_key){
+    withSonarQubeEnv('yrpark-sonar'){
+        sh """#!/bin/bash
+        npx sonar-scanner \
+        -Dsonar.projectKey="${sonar_project_key}" \
+        -Dsonar.projectName="${sonar_project_key}" \
+        -Dsonar.sources=src \
+        -Dsonar.sourceEncoding=UTF-8
+        """
+    }//withSonarQubeEnv
+} //_sonarQubeCheck
+
+def qualityGateCheck(){
+    stage('QualityGate'){
+        script{
+            timeout(time:5, unit: 'MINUTES'){
+                def qg = waitForQualityGate()
+                if (qg.status != 'OK'){
+                    echo "Status: ${qg.status}"
+                    error "quality gate is fail"
+                } else {
+                    echo "Status: ${qg.status}"
+                }
+            }
+        }
+    }
+} //qualityGateCheck
+
 def cleanUp(){
     stage('CleanUp'){
         script{
@@ -118,6 +158,7 @@ def build(){
     this.fetchSource()
     this.buildWithNpm()
     this.uploadS3Bucket()
+    this.sonarQubeCheck()
 
     this.cleanUp()
 } //build
